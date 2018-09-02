@@ -4,9 +4,70 @@ import pandas as pd
 import scipy.stats as stats
 
 
-def update_dict(d, key, row):
-    empty = [0 for _ in row]
-    d[key] = (int(row[0]) + d.get(key, 0))
+def read_file(filename='data/intruder_tests_corrected_pair_id.csv'):
+    return pd.read_csv(filename)
+
+
+def build_box_plot_data_points_treatment(tbl, phase):
+    with_pairs = tbl.assign(pair=tbl.loc[:,'subject'].transform(get_pair))
+    treatment_s = with_pairs.groupby(['phase','cond','status','int_pos','pair','pair_id']) \
+                            .sum().loc[phase,'treatment','S'].loc[:,'app_int']
+    treatment_f = with_pairs.groupby(['phase','cond','status','int_pos','pair','pair_id']) \
+                            .sum().loc[phase,'treatment','F'].loc[:,'app_int']
+
+    far_f_focal = (treatment_f.loc['A'].append(treatment_f.loc['D'])).loc['focal']
+    near_f_focal = (treatment_f.loc['B'].append(treatment_f.loc['C'])).loc['focal']
+    near_f_neigh = (treatment_f.loc['B'].append(treatment_f.loc['C'])).loc['neighbour']
+    near_s_neigh = (treatment_s.loc['B'].append(treatment_s.loc['C'])).loc['neighbour']
+    near_s_focal = (treatment_s.loc['B'].append(treatment_s.loc['C'])).loc['focal']
+    far_s_focal = (treatment_s.loc['A'].append(treatment_s.loc['D'])).loc['focal']
+
+    return {
+        'far_f': far_f_focal,
+        'near_f': near_f_focal,
+        'near_f_all': near_f_focal + near_f_neigh,
+        'near_s_all': near_s_focal + near_s_neigh,
+        'near_s': near_s_focal,
+        'far_s': far_s_focal,
+    }
+
+
+def build_box_plot_data_points_control(tbl, phase):
+    with_pairs = tbl.assign(pair=tbl.loc[:,'subject'].transform(get_pair))
+    control_s = with_pairs.groupby(['phase','cond','status','int_pos','pair','pair_id']) \
+                            .sum().loc[phase,'control','S'].loc[:,'app_int']
+    control_f = with_pairs.groupby(['phase','cond','status','int_pos','pair','pair_id']) \
+                            .sum().loc[phase,'control','F'].loc[:,'app_int']
+
+    far_f_focal = (control_f.loc['A'].append(control_f.loc['D'])).loc['focal']
+    near_f_focal = (control_f.loc['B'].append(control_f.loc['C'])).loc['focal']
+    near_f_neigh = (control_f.loc['B'].append(control_f.loc['C'])).loc['neighbour']
+    near_s_neigh = (control_s.loc['B'].append(control_s.loc['C'])).loc['neighbour']
+    near_s_focal = (control_s.loc['B'].append(control_s.loc['C'])).loc['focal']
+    far_s_focal = (control_s.loc['A'].append(control_s.loc['D'])).loc['focal']
+
+    return {
+        'far_f': far_f_focal,
+        'near_f': near_f_focal,
+        'near_f_all': near_f_focal + near_f_neigh,
+        'near_s_all': near_s_focal + near_s_neigh,
+        'near_s': near_s_focal,
+        'far_s': far_s_focal,
+    }
+
+
+def group_tbl(tbl):
+    with_pairs = tbl.assign(pair=orig.loc[:,'subject'].transform(get_pair))
+    grpd = with_pairs.groupby(['phase','cond','int_pos','pair','status','pair_id','subject']).sum()
+
+    ntbl = pd.DataFrame()
+    for phase in ['habituation','experiment']:
+        for cond in ['treatment','control']:
+            for pos in ['A','B','C','D']:
+                for subject in ['focal','neighbour']:
+                    for status in ['F','S']:
+                        ntbl.assign( grpd.loc[phase,cond,pos,subject,status].loc[:,'app_int'])
+    return ntbl
 
 
 def get_pair(gender):
@@ -17,58 +78,6 @@ def get_pair(gender):
     assert false, gender
 
 
-def get_position(position):
-    if position == 'A' or position == 'D':
-        return 'AD'
-    elif position == 'B' or position == 'C':
-        return 'BC'
-    assert False, position
-
-
-class CrazyKey:
-    def __init__(self, phase, position, cond, *args):
-        self.phase = phase
-        self.position = get_position(position)
-        self.original_position = position
-        self.cond = cond
-        self.args = args
-
-    def __eq__(self, other):
-        return self.args == other.args and self.position == other.position
-
-    def __hash__(self):
-        return hash((self.args, self.position))
-
-    def __str__(self):
-        return f'{self.phase} & {self.original_position} & {self.cond} & {self.args}'
-
-
-# in order to signal whether the subtraction has been done or not, the value is an int
-# if the second value has been seen, and a string if it has.
-def combine(crazy_dict, key, app):
-    assert type(crazy_dict) is dict
-    assert type(key) is CrazyKey
-    assert type(app) is int
-
-    try:
-        (old_key, old_app) = crazy_dict[key]
-        if old_key.phase == 'habituation' and key.phase == 'experiment':
-            val = old_app - app
-            # assert val >= 0, f'{k} -> {val}'
-            return (old_key, f'{val}')
-
-        if old_key.phase == 'experiment' and key.phase == 'habituation':
-            val = app - old_app
-            # assert val >= 0, f'{k} -> {val}'
-            return (key, f'{val}')
-
-        assert False, f'{old_key} f{key}'
-
-    except KeyError:
-        # Other entry not found yet, save app_i
-        return (key, app)
-
-
 def get_names():
     return [
         'habituation_control',
@@ -76,6 +85,12 @@ def get_names():
         'habituation_treatment',
         'experiment_treatment'
     ]
+
+
+
+
+def update_dict(d, key, value):
+    d[key] = (int(value) + d.get(key, 0))
 
 
 def read_data(filename='data/intruder_tests_corrected_pair_id.csv'):
@@ -108,7 +123,7 @@ def read_data(filename='data/intruder_tests_corrected_pair_id.csv'):
 
                 key = (tank_num, date, position, pair, pair_id)
 
-                update_dict(dicts[get_names().index(phase_cond)], key, row[8:10])
+                update_dict(dicts[get_names().index(phase_cond)], key, row[8])
 
             except ValueError as e:
                 print(f'Skipping: {e}, {row}')
@@ -129,15 +144,13 @@ def generate_boxplot_data(dicts, i):
 
 
 def do_plot(dicts, idxs):
-    import matplotlib.pyplot as plt
-
     data_points = [list() for _ in range(6)]
     for i in idxs:
         results = generate_boxplot_data(dicts, i)
         for j, new_points in enumerate(results):
             data_points[j] += new_points
 
-    print(f'{",".join([str(len(d)) for d in data_points])}')
+    print(f'lengths: {",".join([str(len(d)) for d in data_points])}')
     fig, ax = plt.subplots()
     ax.boxplot(
         data_points,
