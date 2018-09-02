@@ -8,11 +8,14 @@ in with pkgs; {
     src = if pkgs.lib.inNixShell then null else nix;
     buildInputs = let
       pyPkgs = python36.withPackages (ps: [
-      ps.numpy
-      ps.toolz
+      ps.ipython
       ps.jupyter
       ps.matplotlib
+      ps.nbconvert
+      ps.numpy
+      ps.pytest
       ps.statsmodels
+      ps.toolz
     ]);
     in [pyPkgs];
   };
