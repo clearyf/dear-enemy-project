@@ -8,6 +8,18 @@ def read_file(filename='data/intruder_tests_corrected_pair_id.csv'):
     return pd.read_csv(filename)
 
 
+def do_wilcoxon(data):
+    keys = [
+        ('far_f', 'near_f'),
+        ('far_f', 'near_f_all'),
+        ('far_s', 'near_s'),
+        ('far_s', 'near_s_all')
+    ]
+
+    for a, b in keys:
+        print(f'{a} & {b} = {stats.wilcoxon(data[a], data[b])}')
+
+
 def build_box_plot_data_points_treatment(tbl, phase):
     with_pairs = tbl.assign(pair=tbl.loc[:,'subject'].transform(get_pair))
     treatment_s = with_pairs.groupby(['phase','cond','status','int_pos','pair','pair_id']) \
