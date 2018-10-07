@@ -19,8 +19,16 @@ def do_test_boxplot(data, col):
     fig, ax = plt.subplots()
     ax.boxplot([control, treatment], labels=['control', 'treatment'])
     ax.set(title=f'{heading}')
+    fig.savefig(f'{heading}.pdf', format='pdf')
 
 short_videos = 'data/output_data_long_videos_PAIR_ID_corrected.xlsx'
+
+def main():
+    data = read_short_video_data(short_videos)
+    do_test_boxplot(data, 'app_i')
+
+if __name__ == '__main__':
+    main()
 
 # table = read_output_data('output_data_long_videos_PAIR_ID_corrected.xlsx'); table.head()
 
