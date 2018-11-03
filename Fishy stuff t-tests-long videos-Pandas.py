@@ -90,10 +90,16 @@ delta_fs = delta.loc['F']; delta_fs
 delta.to_csv('out.csv')
 
 
-# In[ ]:
+# In[15]:
 
 
 delta.to_csv('output_long_videos.csv')
 for heading in ['app_neighbour', 'app_partner', 'freeze_neighbour', 'l_neighbour']:
     do_test_boxplot(delta_fs, heading)
+
+
+# In[17]:
+
+
+get_ipython().system('jupyter nbconvert --to script "Fishy stuff t-tests-long videos-Pandas.ipynb"')
 
